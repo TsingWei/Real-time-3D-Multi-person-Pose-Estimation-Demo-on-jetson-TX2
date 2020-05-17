@@ -1,6 +1,6 @@
 # Real-time 3D Multi-person Pose Estimation Demo on jetson TX2
 
-This repository is oringnally forked from [Daniil-Osokin/lightweight-human-pose-estimation-3d-demo.pytorch](https://github.comDaniil-Osokinlightweight-human-pose-estimation-3d-demo.pytorch), and modified to use TensorRT engine on jetson TX2 device, about 110ms for one frame.
+This repository is oringnally forked from [Daniil-Osokin/lightweight-human-pose-estimation-3d-demo.pytorch](https://github.com/daniil-osokin/lightweight-human-pose-estimation-3d-demo.pytorch), and modified to use TensorRT engine on jetson TX2 device, about 110ms for one frame.
 
 <p align="center">
   <img src="data/human_pose_estimation_3d_demo.jpg" />
