@@ -27,9 +27,16 @@ class InferenceEnginePyTorch:
     def infer(self, img):
         normalized_img = InferenceEnginePyTorch._normalize(img, self.img_mean, self.img_scale)
         data = torch.from_numpy(normalized_img).permute(2, 0, 1).unsqueeze(0).to(self.device)
-
+        # print(type(data), data.shape)
+        # print(data)
         features, heatmaps, pafs = self.net(data)
-
+        # print(features[-1].squeeze().data.cpu().numpy().shape)
+        # print(heatmaps[-1].squeeze().data.cpu().numpy().shape)
+        # print(pafs[-1].squeeze().data.cpu().numpy().shape)
+        # print('----')
+        # print(features)
+        # print(features[-1].shape)
+        # print(features[-1].squeeze().shape)
         return (features[-1].squeeze().data.cpu().numpy(),
                 heatmaps[-1].squeeze().data.cpu().numpy(), pafs[-1].squeeze().data.cpu().numpy())
 

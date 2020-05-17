@@ -208,6 +208,7 @@ def extract_poses(heatmaps, pafs, upsample_ratio):
     pafs = np.transpose(pafs, (2, 0, 1))
 
     num_keypoints = heatmaps.shape[0]
+    print('num_keypoints', num_keypoints)
     total_keypoints_num = 0
     all_keypoints_by_type = []
     for kpt_idx in range(num_keypoints):

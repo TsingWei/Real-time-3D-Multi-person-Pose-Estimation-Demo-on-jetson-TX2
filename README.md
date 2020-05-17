@@ -1,6 +1,6 @@
-# Real-time 3D Multi-person Pose Estimation Demo
+# Real-time 3D Multi-person Pose Estimation Demo on jetson TX2
 
-This repository contains 3D multi-person pose estimation demo in PyTorch. Intel OpenVINO&trade; backend can be used for fast inference on CPU. This demo is based on [Lightweight OpenPose](https://arxiv.org/pdf/1811.12004.pdf) and [Single-Shot Multi-Person 3D Pose Estimation From Monocular RGB](https://arxiv.org/pdf/1712.03453.pdf) papers. It detects 2D coordinates of up to 18 types of keypoints: ears, eyes, nose, neck, shoulders, elbows, wrists, hips, knees, and ankles, as well as their 3D coordinates. It was trained on [MS COCO](http://cocodataset.org/#home) and [CMU Panoptic](http://domedb.perception.cs.cmu.edu/) datasets and achieves 100 mm MPJPE (mean per joint position error) on CMU Panoptic subset. *This repository significantly overlaps with https://github.com/opencv/open_model_zoo/, however contains just the necessary code for 3D human pose estimation demo.*
+This repository is oringnally forked from [Daniil-Osokin/lightweight-human-pose-estimation-3d-demo.pytorch](https://github.comDaniil-Osokinlightweight-human-pose-estimation-3d-demo.pytorch), and modified to use TensorRT engine on jetson TX2 device, about 110ms for one frame.
 
 <p align="center">
   <img src="data/human_pose_estimation_3d_demo.jpg" />
@@ -14,15 +14,16 @@ This repository contains 3D multi-person pose estimation demo in PyTorch. Intel 
 * [Prerequisites](#prerequisites)
 * [Pre-trained model](#pre-trained-model)
 * [Running](#running)
-* [Inference with OpenVINO](#inference-openvino)
+* [Inference with TensorRT](#inference-tensorrt)
 
 ## Requirements
 * Python 3.5 (or above)
 * CMake 3.10 (or above)
 * C++ Compiler (g++ or MSVC)
 * OpenCV 4.0 (or above)
+* TensorRT engine
 
-> [Optional] [Intel OpenVINO](https://software.intel.com/en-us/openvino-toolkit) for fast inference on CPU.
+> [tensorRT](https://developer.nvidia.com/tensorrt) for fast inference on nvidia GPU(for me it is **TX2**).
 
 ## Prerequisites
 1. Install requirements:
@@ -50,23 +51,27 @@ python demo.py --model human-pose-estimation-3d.pth --video 0
 ```
 > Camera can capture scene under different view angles, so for correct scene visualization, please pass camera extrinsics and focal length with `--extrinsics` and `--fx` options correspondingly (extrinsics sample format can be found in data folder). In case no camera parameters provided, demo will use the default ones.
 
-## Inference with OpenVINO <a name="inference-openvino"/>
+## Inference with TensorRT 
+   
+   
+To run with TensorRT, it is necessary to convert checkpoint to onnx format and then change to tensorrt engine. I converted it in `models/` for **nvidia Jetson TX2** and named it as `human-pose-estimation-3d.trt`.
 
-To run with OpenVINO, it is necessary to convert checkpoint to OpenVINO format:
-1. Set OpenVINO environment variables:
-    ```
-	source <OpenVINO_INSTALL_DIR>/bin/setupvars.sh
-	```
-2. Convert checkpoint to ONNX:
-    ```
-	python scripts/convert_to_onnx.py --checkpoint-path human-pose-estimation-3d.pth
-	```
-3. Convert to OpenVINO format:
-    ```
-	python <OpenVINO_INSTALL_DIR>/deployment_tools/model_optimizer/mo.py --input_model human-pose-estimation-3d.onnx --input=data --mean_values=data[128.0,128.0,128.0] --scale_values=data[255.0,255.0,255.0] --output=features,heatmaps,pafs
-	```
+```py
+import tensorrt as trt
+TRT_LOGGER = trt.Logger(trt.Logger.VERBOSE)
 
-To run the demo with OpenVINO inference, pass `--use-openvino` option and specify device to infer on:
+with trt.Builder(TRT_LOGGER) as builder, builder.create_network() as network, trt.OnnxParser(network, TRT_LOGGER) as parser:
+    builder.max_workspace_size = 1 << 30 
+    builder.max_batch_size = 1 
+    builder.fp16_mode = True 
+    with open('human-pose-estimation-3d.onnx', 'rb') as model: 
+        parser.parse(model.read()) 
+    engine = builder.build_cuda_engine(network) 
+    with open('human-pose-estimation-3d.trt', "wb") as f: 
+        f.write(engine.serialize())
 ```
-python demo.py --model human-pose-estimation-3d.xml --device CPU --use-openvino --video 0
+
+To run the demo with TensorRT inference, pass `--use-tensorrt` option and specify device to infer on:
+```
+python demo.py --model models/human-pose-estimation-3d.trt --device GPU --use-tensorrt --video 0
 ```

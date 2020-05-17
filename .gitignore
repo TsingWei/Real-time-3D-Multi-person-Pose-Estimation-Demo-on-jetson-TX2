@@ -1,3 +1,6 @@
 *.pyc
 __pycache__
 .idea/
+.vscode/
+.ipynb_checkpoints/
+build/

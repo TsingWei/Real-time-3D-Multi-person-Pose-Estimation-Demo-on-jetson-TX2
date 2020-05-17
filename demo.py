@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import json
-import os
+import os, time
 
 import cv2
 import numpy as np
@@ -36,7 +36,11 @@ if __name__ == '__main__':
     parser.add_argument('--use-openvino',
                         help='Optional. Run network with OpenVINO as inference engine. '
                              'CPU, GPU, FPGA, HDDL or MYRIAD devices are supported.',
-                        action='store_true')
+                        action='store_true', default=False)
+    parser.add_argument('--use-tensorrt',
+                        help='Optional. Run network with TensorRT as inference engine. '
+                             'Only Nvidia GPU devices are supported.',
+                        action='store_true', default=False)
     parser.add_argument('--images', help='Optional. Path to input image(s).', nargs='+', default='')
     parser.add_argument('--height-size', help='Optional. Network input layer height size.', type=int, default=256)
     parser.add_argument('--extrinsics-path',
@@ -52,6 +56,9 @@ if __name__ == '__main__':
     if args.use_openvino:
         from modules.inference_engine_openvino import InferenceEngineOpenVINO
         net = InferenceEngineOpenVINO(args.model, args.device)
+    elif args.use_tensorrt:
+        from modules.inference_engine_tensorrt import InferenceEngineTensorRT
+        net = InferenceEngineTensorRT(args.model, args.device)
     else:
         from modules.inference_engine_pytorch import InferenceEnginePyTorch
         net = InferenceEnginePyTorch(args.model, args.device)
@@ -92,9 +99,16 @@ if __name__ == '__main__':
         scaled_img = scaled_img[:, 0:scaled_img.shape[1] - (scaled_img.shape[1] % stride)]  # better to pad, but cut out for demo
         if fx < 0:  # Focal length is unknown
             fx = np.float32(0.8 * frame.shape[1])
-
+        t0 = time.time()
         inference_result = net.infer(scaled_img)
+        print('Infer: {:1.3f}'.format(time.time()-t0))
+        # print(type(inference_result))
+        # for ar in inference_result:
+        #     print(ar.shape)
+        # break
+        t0 = time.time()
         poses_3d, poses_2d = parse_poses(inference_result, input_scale, stride, fx, is_video)
+        print('Extract: {:1.3f}'.format(time.time()-t0))
         edges = []
         if len(poses_3d):
             poses_3d = rotate_poses(poses_3d, R, t)
@@ -107,6 +121,7 @@ if __name__ == '__main__':
             poses_3d = poses_3d.reshape(poses_3d.shape[0], 19, -1)[:, :, 0:3]
             edges = (Plotter3d.SKELETON_EDGES + 19 * np.arange(poses_3d.shape[0]).reshape((-1, 1, 1))).reshape((-1, 2))
         plotter.plot(canvas_3d, poses_3d, edges)
+        # continue
         cv2.imshow(canvas_3d_window_name, canvas_3d)
 
         draw_poses(frame, poses_2d)
@@ -117,6 +132,8 @@ if __name__ == '__main__':
             mean_time = mean_time * 0.95 + current_time * 0.05
         cv2.putText(frame, 'FPS: {}'.format(int(1 / mean_time * 10) / 10),
                     (40, 80), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
+        cv2.putText(frame, 'Time: {:1.3f}'.format(current_time),
+                    (40, 120), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255))
         cv2.imshow('ICV 3D Human Pose Estimation', frame)
 
         key = cv2.waitKey(delay)
